@@ -1,0 +1,105 @@
+//code to generate signal to relay from arduno uno
+#define BUTTON_PIN 2  // Single button
+#define RELAY1_PIN 9
+#define RELAY2_PIN 10
+
+bool relayState = false; // Track state of both relays
+
+void setup() {
+    pinMode(BUTTON_PIN, INPUT_PULLUP);  // Using internal pull-up resistor
+    pinMode(RELAY1_PIN, OUTPUT);
+    pinMode(RELAY2_PIN, OUTPUT);
+    
+    digitalWrite(RELAY1_PIN, HIGH); // Ensure relays (bulbs) are OFF initially
+    digitalWrite(RELAY2_PIN, HIGH);
+}
+
+void loop() {
+    if (digitalRead(BUTTON_PIN) == LOW) { // Button pressed
+        delay(200); // Debounce
+        relayState = !relayState; // Toggle state
+
+        digitalWrite(RELAY1_PIN, relayState ? LOW : HIGH); // Toggle relays
+        digitalWrite(RELAY2_PIN, relayState ? LOW : HIGH);
+
+        while (digitalRead(BUTTON_PIN) == LOW); // Wait for release
+    }
+}
+
+//code to monitor street lights voltage and send sms aalert
+#define BLYNK_TEMPLATE_ID "TMPL367dA5bUa"
+#define BLYNK_TEMPLATE_NAME "Street Light Fault DetectionCopy"
+#define BLYNK_AUTH_TOKEN "caXY1aUXns2yi9fILOpVoFiQr4Iz2wsJ"
+
+#define BLYNK_PRINT Serial
+#include <WiFi.h>
+#include <BlynkSimpleEsp32.h>
+
+#define BUTTON_PIN 2  
+#define VOLTAGE_SENSOR1_PIN 34  
+#define VOLTAGE_SENSOR2_PIN 35  
+#define BUZZER_PIN 27  
+
+char auth[] = BLYNK_AUTH_TOKEN;
+char ssid[] = "project";        
+char pass[] = "1234567890";    
+
+bool switchState = false;  // Switch state
+
+void setup() {
+    Serial.begin(115200);
+    Blynk.begin(auth, ssid, pass);
+
+    pinMode(BUTTON_PIN, INPUT_PULLDOWN);
+    pinMode(BUZZER_PIN, OUTPUT);
+    noTone(BUZZER_PIN);  // Ensure buzzer is off initially
+}
+
+void loop() {
+    Blynk.run();
+
+    // Voltage calculation using 30kΩ and 7.5kΩ divider (5:1 ratio)
+    float vout1 = (analogRead(VOLTAGE_SENSOR1_PIN) * 3.3) / 4095.0;
+    float vout2 = (analogRead(VOLTAGE_SENSOR2_PIN) * 3.3) / 4095.0;
+
+    float voltage1 = vout1 * 5; // Adjusted for voltage divider
+    float voltage2 = vout2 * 5; // Adjusted for voltage divider
+
+    // Send voltage values to Blynk app (as integers)
+    Blynk.virtualWrite(V0, (int)voltage1);
+    Blynk.virtualWrite(V1, (int)voltage2);
+
+    Serial.print("V1: "); Serial.print(voltage1); Serial.print("V | ");
+    Serial.print("V2: "); Serial.println(voltage2);
+
+    // Switch control logic
+    if (digitalRead(BUTTON_PIN) == HIGH) {  // Toggle switch
+        delay(200);
+        switchState = !switchState;
+        Blynk.virtualWrite(V2, switchState ? 255 : 0);  // Update LED widget
+        while (digitalRead(BUTTON_PIN) == HIGH);  // Wait for button release
+    }
+
+    bool lowVoltage = false;
+
+    // Check voltage only when switch is OFF
+    if (!switchState) {  
+        if (voltage1 < 10.0) {  // Voltage threshold for Bulb 1
+            Blynk.logEvent("low_voltage_bulb1", "Bulb 1 has low voltage! Check the bulb.");
+            lowVoltage = true;
+            tone(BUZZER_PIN, 1000); // 1kHz tone
+            delay(1000);
+            noTone(BUZZER_PIN);
+
+        }
+        
+        if (voltage2 < 10.0) {  // Voltage threshold for Bulb 2
+            Blynk.logEvent("low_voltage_bulb2", "Bulb 2 has low voltage! Check the bulb.");
+            lowVoltage = true;
+            tone(BUZZER_PIN, 1000); // 1kHz tone
+            delay(1000);
+            noTone(BUZZER_PIN);
+
+        }
+    }
+}

@@ -1,0 +1,117 @@
+#define BLYNK_TEMPLATE_ID "TMPL3evkr0ha-"
+#define BLYNK_TEMPLATE_NAME "Street Light Fault Detection"
+#define BLYNK_AUTH_TOKEN "5rOAE2oadLIdG9_nbGmSWk2Ctx4FlQMB"
+
+#define BLYNK_PRINT Serial
+#include <WiFi.h>
+#include <BlynkSimpleEsp32.h>
+
+char ssid[] = "Project";
+char pass[] = "12345678";
+
+// Sensor pins
+const int bulb1Pin = 34;
+const int bulb2Pin = 35;
+const int bulb3Pin = 32;
+const int bulb4Pin = 33;
+
+// Voltage divider resistors
+const float R1 = 30000.0;
+const float R2 = 7500.0;
+
+// Default threshold voltage (this will be updated by the slider)
+float alertThreshold = 9.0;  // Default 9V threshold
+
+// State tracking
+bool bulb1Alert = false;
+bool bulb2Alert = false;
+bool bulb3Alert = false;
+bool bulb4Alert = false;
+
+void setup() {
+  Serial.begin(115200);
+  Blynk.begin(BLYNK_AUTH_TOKEN, ssid, pass);
+
+  pinMode(bulb1Pin, INPUT);
+  pinMode(bulb2Pin, INPUT);
+  pinMode(bulb3Pin, INPUT);
+  pinMode(bulb4Pin, INPUT);
+}
+
+void checkBulb1() {
+  int adc = analogRead(bulb1Pin);
+  float vout = (adc * 3.3) / 4095.0;
+  float vin = vout / (R2 / (R1 + R2));
+  Blynk.virtualWrite(V4, vin);
+  Serial.print("Bulb 1 Voltage: "); Serial.println(vin);
+
+  if (vin < alertThreshold && !bulb1Alert) {
+    Blynk.logEvent("bulb1_low_voltage_alert", "⚠️ Bulb 1 voltage dropped below threshold. Check for faults.");
+    bulb1Alert = true;
+  } else if (vin >= alertThreshold) {
+    bulb1Alert = false;
+  }
+}
+
+void checkBulb2() {
+  int adc = analogRead(bulb2Pin);
+  float vout = (adc * 3.3) / 4095.0;
+  float vin = vout / (R2 / (R1 + R2));
+  Blynk.virtualWrite(V5, vin);
+  Serial.print("Bulb 2 Voltage: "); Serial.println(vin);
+
+  if (vin < alertThreshold && !bulb2Alert) {
+    Blynk.logEvent("bulb2_low_voltage_alert", "⚠️ Bulb 2 voltage dropped below threshold. Check for faults.");
+    bulb2Alert = true;
+  } else if (vin >= alertThreshold) {
+    bulb2Alert = false;
+  }
+}
+
+void checkBulb3() {
+  int adc = analogRead(bulb3Pin);
+  float vout = (adc * 3.3) / 4095.0;
+  float vin = vout / (R2 / (R1 + R2));
+  Blynk.virtualWrite(V6, vin);
+  Serial.print("Bulb 3 Voltage: "); Serial.println(vin);
+
+  if (vin < alertThreshold && !bulb3Alert) {
+    Blynk.logEvent("bulb3_low_voltage_alert", "⚠️ Bulb 3 voltage dropped below threshold. Check for faults.");
+    bulb3Alert = true;
+  } else if (vin >= alertThreshold) {
+    bulb3Alert = false;
+  }
+}
+
+void checkBulb4() {
+  int adc = analogRead(bulb4Pin);
+  float vout = (adc * 3.3) / 4095.0;
+  float vin = vout / (R2 / (R1 + R2));
+  Blynk.virtualWrite(V7, vin);
+  Serial.print("Bulb 4 Voltage: "); Serial.println(vin);
+
+  if (vin < alertThreshold && !bulb4Alert) {
+    Blynk.logEvent("bulb4_low_voltage_alert", "⚠️ Bulb 4 voltage dropped below threshold. Check for faults.");
+    bulb4Alert = true;
+  } else if (vin >= alertThreshold) {
+    bulb4Alert = false;
+  }
+}
+
+// This function updates the alert threshold based on the slider value.
+BLYNK_WRITE(V0) {
+  alertThreshold = param.asFloat();  // Get the threshold value from the slider
+  Serial.print("Updated Alert Threshold: ");
+  Serial.println(alertThreshold);  // Print the updated threshold to Serial Monitor
+}
+
+void loop() {
+  Blynk.run();
+
+  checkBulb1();
+  checkBulb2();
+  checkBulb3();
+  checkBulb4();
+
+  delay(100);
+}
